@@ -1,15 +1,10 @@
 pipeline {
     agent any
 
-    triggers {
-        githubPush()
-    }
-
     environment {
         IMAGE_NAME = "myapp"
         CONTAINER_NAME = "myapp-container"
         REPO_URL = "https://github.com/JEYAPRAKASH21/jenkins-demo.git"
-        BRANCH_NAME = ""
     }
 
     stages {
@@ -17,37 +12,23 @@ pipeline {
         stage('Detect Branch') {
             steps {
                 script {
-                    // Extract branch from GitHub webhook
-                    def branch = env.GIT_BRANCH
+                    // Get actual checked-out branch
+                    def branch = sh(
+                        script: "git branch --show-current",
+                        returnStdout: true
+                    ).trim()
 
-                    // fallback: extract from git
+                    // fallback if detached HEAD
                     if (!branch) {
                         branch = sh(
-                            script: "git log -1 --pretty=%D | sed 's/.*, origin\\///' | sed 's/,.*//'",
+                            script: "git name-rev --name-only HEAD | sed 's~remotes/origin/~~'",
                             returnStdout: true
                         ).trim()
                     }
 
-                    // clean
-                    branch = branch.replace("origin/", "").trim()
-
                     env.BRANCH_NAME = branch
 
-                    echo "🚀 Building branch: ${env.BRANCH_NAME}"
-                }
-            }
-        }
-
-        stage('Checkout Correct Branch') {
-            steps {
-                script {
-                    checkout([
-                        $class: 'GitSCM',
-                        branches: [[name: "*/${env.BRANCH_NAME}"]],
-                        userRemoteConfigs: [[
-                            url: "${env.REPO_URL}"
-                        ]]
-                    ])
+                    echo "🚀 Detected Branch: ${env.BRANCH_NAME}"
                 }
             }
         }
@@ -55,7 +36,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("${IMAGE_NAME}:${env.BRANCH_NAME}")
+                    sh "docker build -t ${IMAGE_NAME}:${env.BRANCH_NAME} ."
                 }
             }
         }
