@@ -4,7 +4,7 @@ pipeline {
     environment {
         IMAGE_NAME = "myapp"
         CONTAINER_NAME = "myapp-container"
-        BRANCH_NAME = ""
+        BRANCH_NAME = "main"   // default fallback
     }
 
     stages {
@@ -13,21 +13,21 @@ pipeline {
             steps {
                 script {
 
-                    // Get branch from git
-                    def branch = sh(
-                        script: "git rev-parse --abbrev-ref HEAD",
-                        returnStdout: true
-                    ).trim()
+                    // Try Jenkins env first
+                    def branch = env.GIT_BRANCH
 
-                    // Fix if detached HEAD
-                    if (branch == "HEAD") {
+                    // If null → fallback using git
+                    if (!branch) {
                         branch = sh(
-                            script: "git name-rev --name-only HEAD",
+                            script: "git branch -r --contains HEAD | grep origin | head -n 1 | sed 's/origin\\///'",
                             returnStdout: true
-                        ).trim().replace("remotes/origin/", "")
+                        ).trim()
                     }
 
-                    // Save globally
+                    // cleanup
+                    branch = branch.replace("origin/", "").trim()
+
+                    // save globally
                     env.BRANCH_NAME = branch
 
                     echo "🚀 Building branch: ${env.BRANCH_NAME}"
