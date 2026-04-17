@@ -1,10 +1,6 @@
 pipeline {
     agent any
 
-    parameters {
-        string(name: 'BRANCH_NAME', defaultValue: 'main', description: 'Git branch to build')
-    }
-
     environment {
         IMAGE_NAME = "myapp"
         CONTAINER_NAME = "myapp-container"
@@ -12,23 +8,28 @@ pipeline {
 
     stages {
 
-        stage('Print Branch') {
+        stage('Checkout Code') {
             steps {
-                echo "🚀 Building branch: ${params.BRANCH_NAME}"
+                checkout scm
             }
         }
 
-        stage('Checkout Code') {
+        stage('Detect Branch') {
             steps {
-                git branch: "${params.BRANCH_NAME}",
-                url: 'https://github.com/JEYAPRAKASH21/jenkins-demo.git'
+                script {
+                    BRANCH = sh(
+                        script: "git rev-parse --abbrev-ref HEAD",
+                        returnStdout: true
+                    ).trim()
+                    echo "🚀 Building branch: ${BRANCH}"
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("${IMAGE_NAME}:${params.BRANCH_NAME}")
+                    docker.build("${IMAGE_NAME}:${BRANCH}")
                 }
             }
         }
@@ -38,7 +39,7 @@ pipeline {
                 sh """
                 docker stop ${CONTAINER_NAME} || true
                 docker rm ${CONTAINER_NAME} || true
-                docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}:${params.BRANCH_NAME}
+                docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}:${BRANCH}
                 """
             }
         }
