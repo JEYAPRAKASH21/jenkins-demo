@@ -8,10 +8,15 @@ pipeline {
 
     stages {
 
+        stage('Print Branch') {
+            steps {
+                echo "🚀 Building branch: ${env.BRANCH_NAME}"
+            }
+        }
+
         stage('Checkout Code') {
             steps {
-                git branch: 'main',
-                url: 'https://github.com/JEYAPRAKASH21/jenkins-demo.git'
+                checkout scm
             }
         }
 
