@@ -4,6 +4,7 @@ pipeline {
     environment {
         IMAGE_NAME = "myapp"
         CONTAINER_NAME = "myapp-container"
+        BRANCH_NAME = ""   // global variable
     }
 
     stages {
@@ -11,23 +12,23 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 script {
-                    // Jenkins automatically sets this if webhook is used
+                    // Get branch from webhook
                     def branch = env.GIT_BRANCH
 
-                    // fallback if null
                     if (!branch) {
                         branch = "origin/main"
                     }
 
-                    // clean branch name
                     branch = branch.replace("origin/", "")
 
-                    echo "🚀 Building branch: ${branch}"
+                    // save globally
+                    env.BRANCH_NAME = branch
 
-                    // Checkout correct branch
+                    echo "🚀 Building branch: ${env.BRANCH_NAME}"
+
                     checkout([
                         $class: 'GitSCM',
-                        branches: [[name: "*/${branch}"]],
+                        branches: [[name: "*/${env.BRANCH_NAME}"]],
                         userRemoteConfigs: [[
                             url: 'https://github.com/JEYAPRAKASH21/jenkins-demo.git'
                         ]]
@@ -39,7 +40,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("${IMAGE_NAME}:${branch}")
+                    docker.build("${IMAGE_NAME}:${env.BRANCH_NAME}")
                 }
             }
         }
@@ -49,7 +50,7 @@ pipeline {
                 sh """
                 docker stop ${CONTAINER_NAME} || true
                 docker rm ${CONTAINER_NAME} || true
-                docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}:${branch}
+                docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}:${env.BRANCH_NAME}
                 """
             }
         }
