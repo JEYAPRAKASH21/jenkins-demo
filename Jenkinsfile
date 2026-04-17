@@ -4,35 +4,33 @@ pipeline {
     environment {
         IMAGE_NAME = "myapp"
         CONTAINER_NAME = "myapp-container"
-        BRANCH_NAME = ""   // global variable
+        BRANCH_NAME = ""
     }
 
     stages {
 
-        stage('Checkout Code') {
+        stage('Detect Branch') {
             steps {
                 script {
-                    // Get branch from webhook
-                    def branch = env.GIT_BRANCH
 
-                    if (!branch) {
-                        branch = "origin/main"
+                    // Get branch from git
+                    def branch = sh(
+                        script: "git rev-parse --abbrev-ref HEAD",
+                        returnStdout: true
+                    ).trim()
+
+                    // Fix if detached HEAD
+                    if (branch == "HEAD") {
+                        branch = sh(
+                            script: "git name-rev --name-only HEAD",
+                            returnStdout: true
+                        ).trim().replace("remotes/origin/", "")
                     }
 
-                    branch = branch.replace("origin/", "")
-
-                    // save globally
+                    // Save globally
                     env.BRANCH_NAME = branch
 
                     echo "🚀 Building branch: ${env.BRANCH_NAME}"
-
-                    checkout([
-                        $class: 'GitSCM',
-                        branches: [[name: "*/${env.BRANCH_NAME}"]],
-                        userRemoteConfigs: [[
-                            url: 'https://github.com/JEYAPRAKASH21/jenkins-demo.git'
-                        ]]
-                    ])
                 }
             }
         }
