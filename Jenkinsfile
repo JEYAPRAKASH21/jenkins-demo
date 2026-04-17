@@ -10,18 +10,17 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-                checkout scm
-            }
-        }
-
-        stage('Detect Branch') {
-            steps {
                 script {
+                    // Extract branch name from Git
                     BRANCH = sh(
-                        script: "git rev-parse --abbrev-ref HEAD",
+                        script: "git ls-remote --symref origin HEAD | grep refs/heads | awk '{print \$2}' | sed 's@refs/heads/@@'",
                         returnStdout: true
                     ).trim()
+
                     echo "🚀 Building branch: ${BRANCH}"
+
+                    // Checkout actual branch
+                    sh "git checkout ${BRANCH}"
                 }
             }
         }
