@@ -11,16 +11,27 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 script {
-                    // Extract branch name from Git
-                    BRANCH = sh(
-                        script: "git ls-remote --symref origin HEAD | grep refs/heads | awk '{print \$2}' | sed 's@refs/heads/@@'",
-                        returnStdout: true
-                    ).trim()
+                    // Jenkins automatically sets this if webhook is used
+                    def branch = env.GIT_BRANCH
 
-                    echo "🚀 Building branch: ${BRANCH}"
+                    // fallback if null
+                    if (!branch) {
+                        branch = "origin/main"
+                    }
 
-                    // Checkout actual branch
-                    sh "git checkout ${BRANCH}"
+                    // clean branch name
+                    branch = branch.replace("origin/", "")
+
+                    echo "🚀 Building branch: ${branch}"
+
+                    // Checkout correct branch
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "*/${branch}"]],
+                        userRemoteConfigs: [[
+                            url: 'https://github.com/JEYAPRAKASH21/jenkins-demo.git'
+                        ]]
+                    ])
                 }
             }
         }
@@ -28,7 +39,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("${IMAGE_NAME}:${BRANCH}")
+                    docker.build("${IMAGE_NAME}:${branch}")
                 }
             }
         }
@@ -38,7 +49,7 @@ pipeline {
                 sh """
                 docker stop ${CONTAINER_NAME} || true
                 docker rm ${CONTAINER_NAME} || true
-                docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}:${BRANCH}
+                docker run -d -p 80:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}:${branch}
                 """
             }
         }
